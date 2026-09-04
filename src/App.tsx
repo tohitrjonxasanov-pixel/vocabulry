@@ -258,10 +258,23 @@ export default function App() {
     handleSelectWordInBook(item.rawUnit, item.categoryName);
   };
 
-  const startFlashcards = () => {
+  const startFlashcards = (customWords?: [string, string][]) => {
+    if (customWords) {
+      setWordsToLearn(customWords);
+    }
     setCurrentCardIndex(0);
     setIsFlipped(false);
     changeView("flashcards");
+  };
+
+  const handlePracticeFilteredWords = (customWords: [string, string][], mode: "flashcards" | "quiz") => {
+    if (customWords.length === 0) return;
+    setWordsToLearn(customWords);
+    if (mode === "flashcards") {
+      startFlashcards(customWords);
+    } else {
+      startQuiz(customWords);
+    }
   };
 
   // Helper to shuffle array
@@ -321,11 +334,12 @@ export default function App() {
   };
 
   // Starts the interactive Quiz
-  const startQuiz = () => {
-    if (wordsToLearn.length === 0) return;
+  const startQuiz = (customWords?: [string, string][]) => {
+    const words = customWords || wordsToLearn;
+    if (words.length === 0) return;
     
     // Set up queue with structured items
-    const initialQueue = wordsToLearn.map((w, index) => ({
+    const initialQueue = words.map((w, index) => ({
       word: w,
       originalIndex: index
     }));
@@ -813,6 +827,14 @@ export default function App() {
                 </div>
               ) : null}
 
+              {/* Unit-level fast search and filter field */}
+              <UnitWordSearch
+                unit={selectedUnit}
+                selectedCategoryName={selectedCategory?.name || "Barchasi"}
+                onSelectCategory={selectCategory}
+                onPracticeFiltered={handlePracticeFilteredWords}
+              />
+
               {/* Status info bar */}
               <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between text-xs">
                 <div>
@@ -830,7 +852,7 @@ export default function App() {
               </div>
 
               {/* Play Mode Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {/* Flashcards option */}
                 <button
                   onClick={startFlashcards}
@@ -863,13 +885,6 @@ export default function App() {
                   </div>
                 </button>
               </div>
-
-              {/* Unit-level word list with instant search and pronunciation */}
-              <UnitWordSearch
-                unit={selectedUnit}
-                selectedCategoryName={selectedCategory?.name || "Barchasi"}
-                onSelectCategory={selectCategory}
-              />
             </motion.div>
           )}
 
