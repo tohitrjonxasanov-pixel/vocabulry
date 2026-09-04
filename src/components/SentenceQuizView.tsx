@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ArrowLeft, 
   Volume2, 
@@ -7,14 +7,14 @@ import {
   ArrowRight, 
   RotateCcw, 
   Sparkles,
-  Layers,
-  HelpCircle,
   Lightbulb,
   Award,
-  BookOpen
+  BookOpen,
+  SlidersHorizontal
 } from "lucide-react";
-import { getSentenceForWord, SentenceExample } from "../utils/sentenceContext";
+import { getSentenceForWord, SentenceExample, CEFR_LEVEL_META } from "../utils/sentenceContext";
 import { speakWord } from "../utils/search";
+import { CEFRLevel } from "../types";
 
 interface SentenceQuizItem {
   id: string;
@@ -28,13 +28,17 @@ interface SentenceQuizViewProps {
   bookTitle: string;
   categoryTitle: string;
   allUnitWords: [string, string][];
+  initialLevel?: CEFRLevel;
   onBack: () => void;
   onSaveHistory?: (stats: {
     totalWords: number;
     mistakeWords: number;
     percentage: number;
+    level: CEFRLevel;
   }) => void;
 }
+
+const ALL_LEVELS: CEFRLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 export default function SentenceQuizView({
   words,
@@ -42,10 +46,14 @@ export default function SentenceQuizView({
   bookTitle,
   categoryTitle,
   allUnitWords,
+  initialLevel = "A1",
   onBack,
   onSaveHistory
 }: SentenceQuizViewProps) {
-  // Queue of questions to answer (structured like an intelligent flashcard requeue system)
+  // Current CEFR Level for sentences (default to A1 as requested for accessible beginner sentences)
+  const [level, setLevel] = useState<CEFRLevel>(initialLevel);
+
+  // Queue of questions to answer
   const [queue, setQueue] = useState<SentenceQuizItem[]>(() => {
     const initial = words.map((w, idx) => ({
       id: `${w[0]}-${idx}-${Date.now()}`,
@@ -82,12 +90,12 @@ export default function SentenceQuizView({
   const targetEn = currentItem ? currentItem.word[0] : "";
   const targetUz = currentItem ? currentItem.word[1] : "";
 
-  // The sentence example generated for this attempt
+  // The sentence example generated for this attempt and chosen level
   const currentSentence: SentenceExample | null = useMemo(() => {
     if (!currentItem) return null;
     const attempt = attemptCounts[targetEn] || 0;
-    return getSentenceForWord(targetEn, targetUz, attempt);
-  }, [currentItem, targetEn, targetUz, attemptCounts]);
+    return getSentenceForWord(targetEn, targetUz, attempt, level);
+  }, [currentItem, targetEn, targetUz, attemptCounts, level]);
 
   // Generate 4 multiple choice options for current word
   const options = useMemo(() => {
@@ -130,15 +138,12 @@ export default function SentenceQuizView({
 
     if (isCorrect) {
       setStreak((prev) => prev + 1);
-      // Record first try success if not attempted before
       if (firstTryStatus[targetEn] === undefined) {
         setFirstTryStatus((prev) => ({ ...prev, [targetEn]: true }));
       }
-      // Speak the correct word
       speakWord(targetEn);
     } else {
       setStreak(0);
-      // Mark as failed on first try
       if (firstTryStatus[targetEn] === undefined) {
         setFirstTryStatus((prev) => ({ ...prev, [targetEn]: false }));
       }
@@ -146,14 +151,12 @@ export default function SentenceQuizView({
         setMistakeList((prev) => [...prev, targetEn]);
       }
 
-      // REQUEUE LOGIC:
-      // Increment attempt count so next time this word is shown, IT GETS A NEW SENTENCE!
+      // REQUEUE LOGIC: Increment attempt count so when re-asked, IT GETS A NEW SENTENCE AT THIS LEVEL
       setAttemptCounts((prev) => ({
         ...prev,
         [targetEn]: (prev[targetEn] || 0) + 1
       }));
 
-      // Insert item back into queue with intelligent spacing (after 2-3 other questions)
       setQueue((prevQueue) => {
         const remainingQueue = [...prevQueue];
         const newItem: SentenceQuizItem = {
@@ -161,8 +164,6 @@ export default function SentenceQuizView({
           word: currentItem.word,
           originalIndex: currentItem.originalIndex
         };
-
-        // Insert at least 2 steps ahead if possible, or at end
         const insertPosition = Math.min(
           remainingQueue.length,
           currentIndex + 3
@@ -181,7 +182,6 @@ export default function SentenceQuizView({
       setIsAnswerChecked(false);
     } else {
       setIsCompleted(true);
-      // Save stats
       if (onSaveHistory) {
         const correctCount = Object.values(firstTryStatus).filter(Boolean).length;
         const total = totalUniqueCount;
@@ -189,13 +189,14 @@ export default function SentenceQuizView({
         onSaveHistory({
           totalWords: total,
           mistakeWords: mistakeList.length,
-          percentage
+          percentage,
+          level
         });
       }
     }
   };
 
-  // Keyboard support: 1, 2, 3, 4 for options and Enter/Space for next
+  // Keyboard support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isCompleted) return;
@@ -240,7 +241,6 @@ export default function SentenceQuizView({
     setIsCompleted(false);
   };
 
-  // Results calculation
   const correctFirstTryCount = useMemo(() => {
     return Object.values(firstTryStatus).filter(Boolean).length;
   }, [firstTryStatus]);
@@ -257,11 +257,11 @@ export default function SentenceQuizView({
           </div>
 
           <div>
-            <span className="text-xs font-mono uppercase tracking-widest text-[#818cf8]">
-              Gap to'ldirish testi yakunlandi
-            </span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#6366f1]/20 border border-[#6366f1]/30 text-xs font-mono font-bold text-[#818cf8] mb-2">
+              <span>Daraja: {level} ({CEFR_LEVEL_META[level].nameUz})</span>
+            </div>
             <h2 className="text-2xl font-bold text-white mt-1">
-              Ajoyib natija!
+              Test muvaffaqiyatli yakunlandi!
             </h2>
             <p className="text-xs text-[#94a3b8] mt-1">
               {unitTitle} — {categoryTitle}
@@ -334,7 +334,7 @@ export default function SentenceQuizView({
   const currentAttempt = attemptCounts[targetEn] || 0;
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-5" id="sentence-quiz-view">
+    <div className="w-full max-w-2xl mx-auto space-y-4" id="sentence-quiz-view">
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 p-3.5 rounded-2xl">
         <button
@@ -365,6 +365,52 @@ export default function SentenceQuizView({
         </div>
       </div>
 
+      {/* Interactive CEFR Level Selector (A1, A2, B1, B2, C1, C2) */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-3.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+            <SlidersHorizontal size={14} className="text-[#818cf8]" />
+            <span>Gaplar darajasi (Level):</span>
+          </div>
+          <span className="text-[11px] text-[#818cf8] font-mono">
+            {level} — {CEFR_LEVEL_META[level].nameUz}
+          </span>
+        </div>
+
+        {/* 6 Level Pills */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {ALL_LEVELS.map((lvl) => {
+            const isActive = level === lvl;
+            const meta = CEFR_LEVEL_META[lvl];
+            return (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => {
+                  setLevel(lvl);
+                }}
+                className={`py-2 px-1 rounded-xl text-center transition-all cursor-pointer border ${
+                  isActive
+                    ? "bg-[#6366f1] text-white border-white/20 font-bold shadow-[0_0_15px_rgba(99,102,241,0.4)] scale-[1.02]"
+                    : "bg-black/30 hover:bg-white/10 text-slate-300 border-white/5 hover:border-white/15 text-xs font-medium"
+                }`}
+                title={`${lvl}: ${meta.nameUz} — ${meta.desc}`}
+              >
+                <div className="text-xs font-mono">{lvl}</div>
+                <div className="text-[9px] opacity-80 truncate hidden sm:block">
+                  {meta.nameUz}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="text-[11px] text-[#94a3b8] flex items-center justify-between pt-0.5">
+          <span>{CEFR_LEVEL_META[level].desc}</span>
+          <span className="text-[10px] opacity-70">Istalgan payt almashtirish mumkin</span>
+        </div>
+      </div>
+
       {/* Progress Bar */}
       <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
         <div
@@ -375,13 +421,19 @@ export default function SentenceQuizView({
 
       {/* Main Sentence Card */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-7 space-y-5 shadow-xl relative overflow-hidden">
-        {/* Attempt Notice: If this is a retry of a missed word, highlight that the sentence is NEW */}
-        {currentAttempt > 0 && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#6366f1]/15 border border-[#6366f1]/30 text-[11px] text-[#818cf8] font-medium">
-            <Sparkles size={13} />
-            <span>Qayta so'rov: Ushbu so'z uchun yangi boshqa gap berildi</span>
-          </div>
-        )}
+        {/* Status badges: Level and Attempt */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#6366f1]/20 border border-[#6366f1]/40 text-[11px] font-mono font-bold text-[#818cf8]">
+            {level} daraja
+          </span>
+
+          {currentAttempt > 0 && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[11px] text-amber-300 font-medium">
+              <Sparkles size={13} />
+              <span>Qayta so'rov: yangi gap berildi</span>
+            </div>
+          )}
+        </div>
 
         {/* English Sentence with Interactive Blank */}
         <div className="text-lg sm:text-xl md:text-2xl text-white font-medium leading-relaxed tracking-wide">
@@ -420,7 +472,7 @@ export default function SentenceQuizView({
             <div className="bg-black/30 rounded-xl p-4 border border-white/5 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-mono uppercase text-[#818cf8] tracking-wider font-semibold">
-                  Gapning o'zbekcha tarjimasi:
+                  Gapning o'zbekcha tarjimasi ({level}):
                 </span>
                 <button
                   type="button"

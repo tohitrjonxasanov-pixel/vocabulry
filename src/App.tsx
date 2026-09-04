@@ -23,7 +23,7 @@ import {
   Search
 } from "lucide-react";
 import { BOOKS } from "./data";
-import { HistoryItem, ViewState, SearchWordItem } from "./types";
+import { HistoryItem, ViewState, SearchWordItem, CEFRLevel } from "./types";
 import { buildAllIndexedWords } from "./utils/search";
 import GlobalSearchModal from "./components/GlobalSearchModal";
 import BookSearchSection from "./components/BookSearchSection";
@@ -93,6 +93,7 @@ export default function App() {
   // General App State
   const [historyLogs, setHistoryLogs] = useState<HistoryItem[]>([]);
   const [wordsToLearn, setWordsToLearn] = useState<[string, string][]>([]);
+  const [sentenceLevel, setSentenceLevel] = useState<CEFRLevel>("A1");
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   // Global search index built once from all books
@@ -268,9 +269,12 @@ export default function App() {
     changeView("flashcards");
   };
 
-  const startSentenceQuiz = (customWords?: [string, string][]) => {
+  const startSentenceQuiz = (customWords?: [string, string][], customLevel?: CEFRLevel) => {
     if (customWords) {
       setWordsToLearn(customWords);
+    }
+    if (customLevel) {
+      setSentenceLevel(customLevel);
     }
     changeView("sentenceQuiz");
   };
@@ -290,7 +294,12 @@ export default function App() {
     }
   };
 
-  const saveSentenceQuizHistory = (mistakeWordsCount: number, totalWordsCount: number, percentage: number) => {
+  const saveSentenceQuizHistory = (
+    mistakeWordsCount: number, 
+    totalWordsCount: number, 
+    percentage: number,
+    levelUsed: CEFRLevel = sentenceLevel
+  ) => {
     const dateStr = new Date().toLocaleString("uz-UZ", {
       year: "numeric",
       month: "2-digit",
@@ -304,7 +313,7 @@ export default function App() {
       date: dateStr,
       bookTitle: selectedBook?.title || "Noma'lum Kitob",
       unitTitle: selectedUnit?.title || "Noma'lum Unit",
-      category: `${selectedCategory?.name || "Barchasi"} (Gap to'ldirish)`,
+      category: `${selectedCategory?.name || "Barchasi"} (Gap to'ldirish ${levelUsed})`,
       totalWords: totalWordsCount,
       mistakeWords: mistakeWordsCount,
       percentage: percentage
@@ -891,14 +900,12 @@ export default function App() {
               {/* Play Mode Actions */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                 {/* Sentence Completion Mode - Context Test */}
-                <button
-                  onClick={() => startSentenceQuiz()}
-                  disabled={wordsToLearn.length === 0}
-                  className="group bg-gradient-to-br from-[#6366f1]/15 to-purple-600/10 hover:from-[#6366f1]/25 hover:to-purple-600/20 border border-[#6366f1]/30 hover:border-[#6366f1]/60 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] relative overflow-hidden"
-                  id="btn-start-sentence-quiz"
+                <div
+                  className="group bg-gradient-to-br from-[#6366f1]/15 to-purple-600/10 border border-[#6366f1]/30 p-5 rounded-2xl flex flex-col justify-between gap-3 text-left shadow-md relative overflow-hidden"
+                  id="card-sentence-quiz-mode"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <div className="w-11 h-11 rounded-xl bg-[#6366f1]/30 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-11 h-11 rounded-xl bg-[#6366f1]/30 text-white flex items-center justify-center">
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] uppercase tracking-wider font-mono bg-[#6366f1] text-white px-2 py-0.5 rounded-full font-bold">
@@ -906,14 +913,46 @@ export default function App() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white group-hover:text-[#818cf8] flex items-center gap-1.5">
+                    <h3 className="font-bold text-white flex items-center gap-1.5">
                       Gap to'ldirish
                     </h3>
                     <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
-                      Gap kontekstida tushirib qoldirilgan so'zni topish. Xato qilinsa, yangi gapda qayta so'raladi.
+                      Gap kontekstida so'zni topish. Darajani tanlang (A1-C2):
                     </p>
+
+                    {/* Level selector pills */}
+                    <div className="flex items-center gap-1 mt-3 pt-2.5 border-t border-white/10">
+                      {(["A1", "A2", "B1", "B2", "C1", "C2"] as CEFRLevel[]).map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSentenceLevel(lvl);
+                          }}
+                          className={`flex-1 py-1 px-1 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer border ${
+                            sentenceLevel === lvl
+                              ? "bg-[#6366f1] text-white border-white/20 shadow-md font-bold"
+                              : "bg-black/30 hover:bg-white/10 text-slate-300 border-white/5"
+                          }`}
+                        >
+                          {lvl}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </button>
+
+                  <button
+                    type="button"
+                    onClick={() => startSentenceQuiz()}
+                    disabled={wordsToLearn.length === 0}
+                    className="w-full mt-1 py-2.5 px-3 rounded-xl bg-[#6366f1] hover:bg-[#4f46e5] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-98"
+                    id="btn-start-sentence-quiz"
+                  >
+                    <span>{sentenceLevel} darajada boshlash</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
 
                 {/* Flashcards option */}
                 <button
@@ -1205,9 +1244,10 @@ export default function App() {
                     ? selectedUnit.categories.flatMap((c: any) => c.words)
                     : selectedUnit.words || []
                 }
+                initialLevel={sentenceLevel}
                 onBack={handleBack}
                 onSaveHistory={(stats) => {
-                  saveSentenceQuizHistory(stats.mistakeWords, stats.totalWords, stats.percentage);
+                  saveSentenceQuizHistory(stats.mistakeWords, stats.totalWords, stats.percentage, stats.level);
                 }}
               />
             </motion.div>
