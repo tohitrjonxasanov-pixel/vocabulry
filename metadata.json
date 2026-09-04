@@ -1,0 +1,6 @@
+{
+  "name": "Ingliz Tili Lug'at O'rganish Ilovasi",
+  "description": "Destination B1 va 4000 Essential English Words kitoblari bo'yicha lug'at o'rganish, fleshkartalar va requeue mantiqli test sinovlari ilovasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
