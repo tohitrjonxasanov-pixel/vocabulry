@@ -17,6 +17,7 @@ export type ViewState =
   | "categoryMenu" 
   | "flashcards" 
   | "quiz" 
+  | "sentenceQuiz"
   | "results" 
   | "history";
 

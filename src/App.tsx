@@ -28,6 +28,7 @@ import { buildAllIndexedWords } from "./utils/search";
 import GlobalSearchModal from "./components/GlobalSearchModal";
 import BookSearchSection from "./components/BookSearchSection";
 import UnitWordSearch from "./components/UnitWordSearch";
+import SentenceQuizView from "./components/SentenceQuizView";
 
 const STORAGE_KEY = "vocabulary_app_history_logs_v1";
 
@@ -159,7 +160,7 @@ export default function App() {
     } else if (currentView === "categoryMenu") {
       setCurrentView("unitList");
       setSelectedUnit(null);
-    } else if (currentView === "flashcards" || currentView === "quiz" || currentView === "results") {
+    } else if (currentView === "flashcards" || currentView === "quiz" || currentView === "sentenceQuiz" || currentView === "results") {
       if (selectedUnitHasCategories) {
         setCurrentView("categoryMenu");
       } else {
@@ -267,14 +268,50 @@ export default function App() {
     changeView("flashcards");
   };
 
-  const handlePracticeFilteredWords = (customWords: [string, string][], mode: "flashcards" | "quiz") => {
+  const startSentenceQuiz = (customWords?: [string, string][]) => {
+    if (customWords) {
+      setWordsToLearn(customWords);
+    }
+    changeView("sentenceQuiz");
+  };
+
+  const handlePracticeFilteredWords = (
+    customWords: [string, string][], 
+    mode: "flashcards" | "quiz" | "sentenceQuiz"
+  ) => {
     if (customWords.length === 0) return;
     setWordsToLearn(customWords);
     if (mode === "flashcards") {
       startFlashcards(customWords);
-    } else {
+    } else if (mode === "quiz") {
       startQuiz(customWords);
+    } else {
+      startSentenceQuiz(customWords);
     }
+  };
+
+  const saveSentenceQuizHistory = (mistakeWordsCount: number, totalWordsCount: number, percentage: number) => {
+    const dateStr = new Date().toLocaleString("uz-UZ", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const newHistoryItem: HistoryItem = {
+      id: Math.random().toString(36).substring(2, 9),
+      date: dateStr,
+      bookTitle: selectedBook?.title || "Noma'lum Kitob",
+      unitTitle: selectedUnit?.title || "Noma'lum Unit",
+      category: `${selectedCategory?.name || "Barchasi"} (Gap to'ldirish)`,
+      totalWords: totalWordsCount,
+      mistakeWords: mistakeWordsCount,
+      percentage: percentage
+    };
+
+    const updatedLogs = [newHistoryItem, ...historyLogs];
+    updateHistory(updatedLogs);
   };
 
   // Helper to shuffle array
@@ -852,36 +889,61 @@ export default function App() {
               </div>
 
               {/* Play Mode Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                {/* Sentence Completion Mode - Context Test */}
+                <button
+                  onClick={() => startSentenceQuiz()}
+                  disabled={wordsToLearn.length === 0}
+                  className="group bg-gradient-to-br from-[#6366f1]/15 to-purple-600/10 hover:from-[#6366f1]/25 hover:to-purple-600/20 border border-[#6366f1]/30 hover:border-[#6366f1]/60 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] relative overflow-hidden"
+                  id="btn-start-sentence-quiz"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="w-11 h-11 rounded-xl bg-[#6366f1]/30 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-mono bg-[#6366f1] text-white px-2 py-0.5 rounded-full font-bold">
+                      Yangi
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white group-hover:text-[#818cf8] flex items-center gap-1.5">
+                      Gap to'ldirish
+                    </h3>
+                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+                      Gap kontekstida tushirib qoldirilgan so'zni topish. Xato qilinsa, yangi gapda qayta so'raladi.
+                    </p>
+                  </div>
+                </button>
+
                 {/* Flashcards option */}
                 <button
-                  onClick={startFlashcards}
+                  onClick={() => startFlashcards()}
                   disabled={wordsToLearn.length === 0}
-                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-6 rounded-2xl flex items-center gap-4 transition-all text-left cursor-pointer active:scale-98 shadow-md"
+                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md"
                   id="btn-start-flashcards"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Layers className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Layers className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-white group-hover:text-[#818cf8]">Fleshkarta rejimi</h3>
-                    <p className="text-xs text-[#94a3b8] mt-1">Flip-card interfeysi yordamida tarjimalarni vizual eslab qoling.</p>
+                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">Flip-card interfeysi yordamida tarjimalarni vizual eslab qoling.</p>
                   </div>
                 </button>
 
                 {/* Quiz option */}
                 <button
-                  onClick={startQuiz}
+                  onClick={() => startQuiz()}
                   disabled={wordsToLearn.length === 0}
-                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-6 rounded-2xl flex items-center gap-4 transition-all text-left cursor-pointer active:scale-98 shadow-md"
+                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md"
                   id="btn-start-quiz"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <ListChecks className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ListChecks className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-white group-hover:text-[#818cf8]">Test sinovi (Quiz)</h3>
-                    <p className="text-xs text-[#94a3b8] mt-1">Xatolarni dars davomida qayta so'raydigan intellektual test.</p>
+                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">Lug'at bo'yicha 4 ta variantli klassik test sinovi.</p>
                   </div>
                 </button>
               </div>
@@ -1121,6 +1183,33 @@ export default function App() {
                   </button>
                 </motion.div>
               )}
+            </motion.div>
+          )}
+
+          {/* SENTENCE QUIZ VIEW (Gap to'ldirish va kontekstli test) */}
+          {currentView === "sentenceQuiz" && selectedBook && selectedUnit && wordsToLearn.length > 0 && (
+            <motion.div
+              key="sentenceQuiz"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="w-full"
+            >
+              <SentenceQuizView
+                words={wordsToLearn}
+                unitTitle={selectedUnit.title}
+                bookTitle={selectedBook.title}
+                categoryTitle={selectedCategory?.name || "Barchasi"}
+                allUnitWords={
+                  selectedUnit.categories
+                    ? selectedUnit.categories.flatMap((c: any) => c.words)
+                    : selectedUnit.words || []
+                }
+                onBack={handleBack}
+                onSaveHistory={(stats) => {
+                  saveSentenceQuizHistory(stats.mistakeWords, stats.totalWords, stats.percentage);
+                }}
+              />
             </motion.div>
           )}
 
