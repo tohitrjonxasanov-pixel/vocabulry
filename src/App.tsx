@@ -23,12 +23,13 @@ import {
   Search
 } from "lucide-react";
 import { BOOKS } from "./data";
-import { HistoryItem, ViewState, SearchWordItem, CEFRLevel } from "./types";
+import { HistoryItem, ViewState, SearchWordItem } from "./types";
 import { buildAllIndexedWords } from "./utils/search";
 import GlobalSearchModal from "./components/GlobalSearchModal";
 import BookSearchSection from "./components/BookSearchSection";
 import UnitWordSearch from "./components/UnitWordSearch";
-import SentenceQuizView from "./components/SentenceQuizView";
+import GapFillSection from "./components/GapFillSection";
+import GapFillComingSoonModal from "./components/GapFillComingSoonModal";
 
 const STORAGE_KEY = "vocabulary_app_history_logs_v1";
 
@@ -93,8 +94,8 @@ export default function App() {
   // General App State
   const [historyLogs, setHistoryLogs] = useState<HistoryItem[]>([]);
   const [wordsToLearn, setWordsToLearn] = useState<[string, string][]>([]);
-  const [sentenceLevel, setSentenceLevel] = useState<CEFRLevel>("A1");
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isGapFillCategoryModalOpen, setIsGapFillCategoryModalOpen] = useState(false);
 
   // Global search index built once from all books
   const indexedWords = useMemo(() => buildAllIndexedWords(BOOKS), []);
@@ -161,7 +162,7 @@ export default function App() {
     } else if (currentView === "categoryMenu") {
       setCurrentView("unitList");
       setSelectedUnit(null);
-    } else if (currentView === "flashcards" || currentView === "quiz" || currentView === "sentenceQuiz" || currentView === "results") {
+    } else if (currentView === "flashcards" || currentView === "quiz" || currentView === "results") {
       if (selectedUnitHasCategories) {
         setCurrentView("categoryMenu");
       } else {
@@ -269,58 +270,14 @@ export default function App() {
     changeView("flashcards");
   };
 
-  const startSentenceQuiz = (customWords?: [string, string][], customLevel?: CEFRLevel) => {
-    if (customWords) {
-      setWordsToLearn(customWords);
-    }
-    if (customLevel) {
-      setSentenceLevel(customLevel);
-    }
-    changeView("sentenceQuiz");
-  };
-
-  const handlePracticeFilteredWords = (
-    customWords: [string, string][], 
-    mode: "flashcards" | "quiz" | "sentenceQuiz"
-  ) => {
+  const handlePracticeFilteredWords = (customWords: [string, string][], mode: "flashcards" | "quiz") => {
     if (customWords.length === 0) return;
     setWordsToLearn(customWords);
     if (mode === "flashcards") {
       startFlashcards(customWords);
-    } else if (mode === "quiz") {
-      startQuiz(customWords);
     } else {
-      startSentenceQuiz(customWords);
+      startQuiz(customWords);
     }
-  };
-
-  const saveSentenceQuizHistory = (
-    mistakeWordsCount: number, 
-    totalWordsCount: number, 
-    percentage: number,
-    levelUsed: CEFRLevel = sentenceLevel
-  ) => {
-    const dateStr = new Date().toLocaleString("uz-UZ", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
-    const newHistoryItem: HistoryItem = {
-      id: Math.random().toString(36).substring(2, 9),
-      date: dateStr,
-      bookTitle: selectedBook?.title || "Noma'lum Kitob",
-      unitTitle: selectedUnit?.title || "Noma'lum Unit",
-      category: `${selectedCategory?.name || "Barchasi"} (Gap to'ldirish ${levelUsed})`,
-      totalWords: totalWordsCount,
-      mistakeWords: mistakeWordsCount,
-      percentage: percentage
-    };
-
-    const updatedLogs = [newHistoryItem, ...historyLogs];
-    updateHistory(updatedLogs);
   };
 
   // Helper to shuffle array
@@ -675,6 +632,16 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Featured Section: Gap to'ldirish (Matching requested mockup) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold tracking-wider text-[#94a3b8] uppercase font-mono">
+                    Interaktiv mashq rejimi:
+                  </h3>
+                </div>
+                <GapFillSection idPrefix="home" />
+              </div>
+
               {/* Books Selection Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -898,91 +865,54 @@ export default function App() {
               </div>
 
               {/* Play Mode Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                {/* Sentence Completion Mode - Context Test */}
-                <div
-                  className="group bg-gradient-to-br from-[#6366f1]/15 to-purple-600/10 border border-[#6366f1]/30 p-5 rounded-2xl flex flex-col justify-between gap-3 text-left shadow-md relative overflow-hidden"
-                  id="card-sentence-quiz-mode"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="w-11 h-11 rounded-xl bg-[#6366f1]/30 text-white flex items-center justify-center">
-                      <BookOpen className="w-5 h-5" />
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wider font-mono bg-[#6366f1] text-white px-2 py-0.5 rounded-full font-bold">
-                      Yangi
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white flex items-center gap-1.5">
-                      Gap to'ldirish
-                    </h3>
-                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
-                      Gap kontekstida so'zni topish. Darajani tanlang (A1-C2):
-                    </p>
-
-                    {/* Level selector pills */}
-                    <div className="flex items-center gap-1 mt-3 pt-2.5 border-t border-white/10">
-                      {(["A1", "A2", "B1", "B2", "C1", "C2"] as CEFRLevel[]).map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSentenceLevel(lvl);
-                          }}
-                          className={`flex-1 py-1 px-1 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer border ${
-                            sentenceLevel === lvl
-                              ? "bg-[#6366f1] text-white border-white/20 shadow-md font-bold"
-                              : "bg-black/30 hover:bg-white/10 text-slate-300 border-white/5"
-                          }`}
-                        >
-                          {lvl}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => startSentenceQuiz()}
-                    disabled={wordsToLearn.length === 0}
-                    className="w-full mt-1 py-2.5 px-3 rounded-xl bg-[#6366f1] hover:bg-[#4f46e5] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-98"
-                    id="btn-start-sentence-quiz"
-                  >
-                    <span>{sentenceLevel} darajada boshlash</span>
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
                 {/* Flashcards option */}
                 <button
-                  onClick={() => startFlashcards()}
+                  onClick={startFlashcards}
                   disabled={wordsToLearn.length === 0}
-                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md"
+                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex items-center gap-3.5 transition-all text-left cursor-pointer active:scale-98 shadow-md"
                   id="btn-start-flashcards"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
                     <Layers className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-[#818cf8]">Fleshkarta rejimi</h3>
-                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">Flip-card interfeysi yordamida tarjimalarni vizual eslab qoling.</p>
+                    <h3 className="font-semibold text-white group-hover:text-[#818cf8] text-sm">Fleshkarta rejimi</h3>
+                    <p className="text-xs text-[#94a3b8] mt-0.5 leading-tight">Flip-card interfeysi bilan vizual eslash.</p>
                   </div>
                 </button>
 
                 {/* Quiz option */}
                 <button
-                  onClick={() => startQuiz()}
+                  onClick={startQuiz}
                   disabled={wordsToLearn.length === 0}
-                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex flex-col justify-between gap-3 transition-all text-left cursor-pointer active:scale-98 shadow-md"
+                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex items-center gap-3.5 transition-all text-left cursor-pointer active:scale-98 shadow-md"
                   id="btn-start-quiz"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
                     <ListChecks className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white group-hover:text-[#818cf8]">Test sinovi (Quiz)</h3>
-                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">Lug'at bo'yicha 4 ta variantli klassik test sinovi.</p>
+                    <h3 className="font-semibold text-white group-hover:text-[#818cf8] text-sm">Test sinovi (Quiz)</h3>
+                    <p className="text-xs text-[#94a3b8] mt-0.5 leading-tight">Xatolarni darsda qayta so'raydigan test.</p>
+                  </div>
+                </button>
+
+                {/* Gap to'ldirish option (New) */}
+                <button
+                  onClick={() => setIsGapFillCategoryModalOpen(true)}
+                  className="group bg-white/5 hover:bg-white/12 border border-white/5 hover:border-[#6366f1]/40 p-5 rounded-2xl flex items-center gap-3.5 transition-all text-left cursor-pointer active:scale-98 shadow-md relative overflow-hidden"
+                  id="btn-category-gap-fill"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-[#6366f1]/20 text-[#818cf8] flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-white group-hover:text-[#818cf8] text-sm">Gap to'ldirish</h3>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#4f46e5] text-white">YANGI</span>
+                    </div>
+                    <p className="text-xs text-[#94a3b8] mt-0.5 leading-tight">Kontekstda so'zni topish (Tez kunda).</p>
                   </div>
                 </button>
               </div>
@@ -1225,34 +1155,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* SENTENCE QUIZ VIEW (Gap to'ldirish va kontekstli test) */}
-          {currentView === "sentenceQuiz" && selectedBook && selectedUnit && wordsToLearn.length > 0 && (
-            <motion.div
-              key="sentenceQuiz"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="w-full"
-            >
-              <SentenceQuizView
-                words={wordsToLearn}
-                unitTitle={selectedUnit.title}
-                bookTitle={selectedBook.title}
-                categoryTitle={selectedCategory?.name || "Barchasi"}
-                allUnitWords={
-                  selectedUnit.categories
-                    ? selectedUnit.categories.flatMap((c: any) => c.words)
-                    : selectedUnit.words || []
-                }
-                initialLevel={sentenceLevel}
-                onBack={handleBack}
-                onSaveHistory={(stats) => {
-                  saveSentenceQuizHistory(stats.mistakeWords, stats.totalWords, stats.percentage, stats.level);
-                }}
-              />
-            </motion.div>
-          )}
-
           {/* RESULTS VIEW */}
           {currentView === "results" && selectedBook && selectedUnit && (
             <motion.div
@@ -1465,6 +1367,13 @@ export default function App() {
         onClose={() => setIsGlobalSearchOpen(false)}
         indexedWords={indexedWords}
         onSelectWord={handleSelectWordFromGlobalSearch}
+      />
+
+      {/* Gap to'ldirish coming soon modal for Category Menu */}
+      <GapFillComingSoonModal
+        isOpen={isGapFillCategoryModalOpen}
+        onClose={() => setIsGapFillCategoryModalOpen(false)}
+        level={selectedBook?.id === "destination-b1" ? "B1" : "A1-C2"}
       />
     </div>
   );

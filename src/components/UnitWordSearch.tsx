@@ -20,7 +20,7 @@ interface UnitWordSearchProps {
   unit: Unit;
   selectedCategoryName: string;
   onSelectCategory?: (categoryName: string) => void;
-  onPracticeFiltered?: (words: [string, string][], mode: "flashcards" | "quiz" | "sentenceQuiz") => void;
+  onPracticeFiltered?: (words: [string, string][], mode: "flashcards" | "quiz") => void;
 }
 
 interface UnitWordDisplay {
@@ -203,18 +203,10 @@ export default function UnitWordSearch({
           <div className="text-slate-200">
             Filtr bo'yicha topilgan <span className="font-bold text-[#818cf8]">{filteredWords.length} ta</span> so'zni mashq qilish:
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => onPracticeFiltered(filteredPairs, "sentenceQuiz")}
-              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#6366f1] to-[#818cf8] hover:from-[#4f46e5] hover:to-[#6366f1] text-white font-medium flex items-center gap-1.5 transition-all shadow-sm"
-              id="practice-filtered-sentence-btn"
-            >
-              <BookOpen size={13} />
-              <span>Gap to'ldirish ({filteredWords.length})</span>
-            </button>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => onPracticeFiltered(filteredPairs, "flashcards")}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white font-medium flex items-center gap-1.5 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-[#6366f1] hover:bg-[#4f46e5] text-white font-medium flex items-center gap-1.5 transition-all shadow-sm"
               id="practice-filtered-flashcards-btn"
             >
               <LayersIcon size={13} />
